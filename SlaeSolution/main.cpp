@@ -6,20 +6,28 @@ int main()
     try
     {
         slae slae;
-        slae.input("input.txt");
 
-        bool has_solution = slae.solve();
+        slae.input();
+        const bool solvable = slae.solve();
 
-        if (has_solution)
-            has_solution = slae.validate_solution();
+        if (!solvable)
+        {
+            slae.output(solvable);
+            return 0;
+        }
 
-        slae.output("output.txt", has_solution);
+        if (!slae.validate_solution())
+        {
+            slae.output(solvable);
+            return 0;
+        }
+
+        slae.output(solvable);
+        return 0;
     }
     catch (const std::exception& exception)
     {
         std::cerr << exception.what() << '\n';
         return 1;
     }
-
-    return 0;
 }

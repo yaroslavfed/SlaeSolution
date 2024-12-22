@@ -1,6 +1,5 @@
 #include "SLAE.h"
 #include <fstream>
-#include <stdexcept>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -9,25 +8,18 @@ slae::slae() : num_equations(0), num_variables(0), matrix_size(0), num_free_vari
 {
 }
 
-void slae::input(const std::string& file_name)
+void slae::input()
 {
-    // std::ifstream input_file(file_name);
-    // check_file_stream(input_file, file_name);
-    //
-    // input_file >> num_equations >> num_variables;
-
     std::cin >> num_equations >> num_variables;
-    
     matrix_size = num_equations + num_variables;
 
-    extended_matrix.resize(matrix_size, vector(num_variables + 1, 0));
-    original_matrix.resize(num_equations, vector(num_variables + 1, 0));
+    extended_matrix.resize(matrix_size, std::vector<int>(num_variables + 1));
+    original_matrix.resize(matrix_size, std::vector<int>(num_variables + 1));
 
-    for (size_t i = 0; i < num_equations; ++i)
+    for (int i = 0; i < num_equations; i++)
     {
-        for (size_t j = 0; j <= num_variables; ++j)
+        for (int j = 0; j <= num_variables; j++)
         {
-            // input_file >> extended_matrix[i][j];
             std::cin >> extended_matrix[i][j];
             original_matrix[i][j] = extended_matrix[i][j];
         }
@@ -36,28 +28,66 @@ void slae::input(const std::string& file_name)
     }
 
     // Добавляем единичные строки для свободных переменных
-    for (size_t i = num_equations, j = 0; i < matrix_size; ++i, ++j)
+    for (int i = num_equations, j = 0; i < matrix_size; i++, j++)
         extended_matrix[i][j] = 1;
-
-    // input_file.close();
 }
 
 bool slae::solve()
 {
-    for (size_t i = 0; i < num_equations; ++i)
-    {
-        const size_t pivot_column = find_pivot_column(i);
-
-        if (pivot_column == static_cast<size_t>(-1))
+    for (int i = 0; i < num_equations; i++)
+        while (true)
         {
-            if (extended_matrix[i][num_variables] != 0)
-                return false;
-            continue;
-        }
+            int min_index = -1;
+            for (int j = i; j < num_equations; j++)
+                if (extended_matrix[i][j] != 0 && (min_index == -1 || abs(extended_matrix[i][j]) < abs(
+                    extended_matrix[i][min_index])))
+                    min_index = j;
 
-        eliminate_column(i, pivot_column);
-        normalize_row(i, pivot_column);
-    }
+            if (min_index == -1)
+            {
+                if (extended_matrix[i][num_equations] != 0)
+                    return false;
+
+                extended_matrix.erase(extended_matrix.begin() + i);
+                --i;
+                --num_equations;
+                --matrix_size;
+                break;
+            }
+
+            for (int j = i; j < num_equations; j++)
+                if (j != min_index && extended_matrix[i][j] != 0)
+                {
+                    int q = extended_matrix[i][j] / extended_matrix[i][min_index];
+                    for (int k = i; k < matrix_size; k++)
+                        extended_matrix[k][j] -= extended_matrix[k][min_index] * q;
+                }
+
+            if (extended_matrix[i][i] == 0)
+                for (int k = i; k < matrix_size; k++)
+                    std::swap(extended_matrix[k][i], extended_matrix[k][min_index]);
+
+            bool non_diagonal_exists = false;
+            for (int j = i + 1; j < num_equations; j++)
+                if (extended_matrix[i][j] != 0)
+                {
+                    non_diagonal_exists = true;
+                    break;
+                }
+
+            if (!non_diagonal_exists)
+            {
+                if (extended_matrix[i][i] == 0 || extended_matrix[i][num_equations] % extended_matrix[i][i] != 0)
+                    return false;
+
+                const int q = extended_matrix[i][num_equations] / extended_matrix[i][i];
+                for (int k = i; k < matrix_size; k++)
+                    extended_matrix[k][num_equations] -= extended_matrix[k][i] * q;
+
+                if (extended_matrix[i][num_equations] == 0)
+                    break;
+            }
+        }
     return true;
 }
 
@@ -65,111 +95,44 @@ bool slae::validate_solution()
 {
     num_free_variables = num_variables - num_equations;
 
-    const vector free_variables = generate_free_variables();
-    const vector solution = compute_solution(free_variables);
+    std::vector<int> free_variables(num_free_variables);
+    for (int i = 0; i < num_free_variables; i++)
+        free_variables[i] = rand(); // NOLINT(concurrency-mt-unsafe)
 
-    return check_solution(solution);
+    std::vector<int> x(num_variables);
+    for (int i = 0; i < num_variables; i++)
+        x[i] = i >= num_equations
+                   ? extended_matrix[i][num_variables]
+                   : 0;
+
+    for (int s = num_equations, i = 0; s < matrix_size; s++, i++)
+        for (int j = 0; j < num_free_variables; j++)
+            x[s - num_equations] += extended_matrix[s][num_variables - (j + 1)] * free_variables[j];
+
+    std::vector<int> test(num_equations);
+    for (int i = 0; i < num_equations; i++)
+        for (int j = 0; j < num_variables; j++)
+            test[i] += original_matrix[i][j] * x[j];
+
+    int result = 0;
+    for (int i = 0; i < num_equations; i++)
+        result += abs(test[i] - original_matrix[i][num_variables]);
+
+    return result == 0;
 }
 
-void slae::output(const std::string& file_name, const bool has_solution) const
+void slae::output(const bool has_solution) const
 {
-    // std::ofstream output_file(file_name);
-    // check_file_stream(output_file, file_name);
-
     if (!has_solution)
-        // output_file << "NO SOLUTIONS";
-        std::cout << "NO SOLUTIONS";
+        std::cout << "NO SOLUTIONS" << '\n';
     else
     {
-        // output_file << num_free_variables << '\n';
         std::cout << num_free_variables << '\n';
-        for (size_t i = num_equations; i < matrix_size; ++i)
+        for (int i = num_equations; i < matrix_size; i++)
         {
-            for (size_t j = num_variables - num_free_variables; j <= num_variables; ++j)
-                // output_file << extended_matrix[i][j] << " ";
+            for (int j = num_variables - num_free_variables; j <= num_variables; j++)
                 std::cout << extended_matrix[i][j] << " ";
-            // output_file << '\n';
             std::cout << '\n';
         }
     }
-    // output_file.close();
-}
-
-size_t slae::find_pivot_column(const size_t row) const
-{
-    size_t pivot_column = static_cast<size_t>(-1);
-    for (size_t j = row; j < num_variables; ++j)
-        if (extended_matrix[row][j] != 0)
-            if (pivot_column == static_cast<size_t>(-1)
-                || std::abs(extended_matrix[row][j]) < std::abs(extended_matrix[row][pivot_column])
-            )
-                pivot_column = j;
-    return pivot_column;
-}
-
-void slae::eliminate_column(const size_t row, const size_t pivot_column)
-{
-    for (size_t i = row + 1; i < matrix_size; ++i)
-        if (extended_matrix[i][pivot_column] != 0)
-        {
-            const int factor = extended_matrix[i][pivot_column] / extended_matrix[row][pivot_column];
-            for (size_t j = pivot_column; j <= num_variables; ++j)
-                extended_matrix[i][j] -= factor * extended_matrix[row][j];
-        }
-}
-
-void slae::normalize_row(const size_t row, const size_t pivot_column)
-{
-    const int pivot_value = extended_matrix[row][pivot_column];
-    if (pivot_value != 0)
-        for (size_t j = pivot_column; j <= num_variables; ++j)
-            extended_matrix[row][j] /= pivot_value;
-}
-
-void slae::check_file_stream(const std::ifstream& stream, const std::string& file_name)
-{
-    if (!stream)
-        throw std::runtime_error("Не удалось открыть файл: " + file_name);
-}
-
-void slae::check_file_stream(const std::ofstream& stream, const std::string& file_name)
-{
-    if (!stream)
-        throw std::runtime_error("Не удалось открыть файл: " + file_name);
-}
-
-vector slae::generate_free_variables() const
-{
-    vector free_variables(num_free_variables);
-    for (size_t i = 0; i < num_free_variables; ++i)
-        // NOLINT(concurrency-mt-unsafe)
-        free_variables[i] = std::rand() % 10;
-    return free_variables;
-}
-
-vector slae::compute_solution(const vector& free_variables) const
-{
-    vector solution(num_variables, 0);
-    for (size_t i = num_equations; i < matrix_size; ++i)
-    {
-        solution[i - num_equations] = extended_matrix[i][num_variables];
-        for (size_t j = 0; j < num_free_variables; ++j)
-            solution[i - num_equations]
-                += extended_matrix[i][num_variables - num_free_variables + j] * free_variables[j];
-    }
-    return solution;
-}
-
-bool slae::check_solution(const vector& solution) const
-{
-    for (size_t i = 0; i < num_equations; ++i)
-    {
-        int sum = 0;
-        for (size_t j = 0; j < num_variables; ++j)
-            sum += original_matrix[i][j] * solution[j];
-
-        if (sum != original_matrix[i][num_variables])
-            return false;
-    }
-    return true;
 }
