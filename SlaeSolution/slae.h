@@ -2,6 +2,9 @@
 
 #include <vector>
 
+using matrix = std::vector<std::vector<int>>;
+using vector = std::vector<int>;
+
 class slae
 {
     // Количество уравнений
@@ -11,10 +14,10 @@ class slae
     int num_variables;
 
     // Расширенная матрица
-    std::vector<std::vector<int>> extended_matrix;
+    matrix extended_matrix;
 
     // Оригинальная матрица для проверки решения
-    std::vector<std::vector<int>> original_matrix;
+    matrix original_matrix;
 
     // Общий размер расширенной матрицы
     int matrix_size;
