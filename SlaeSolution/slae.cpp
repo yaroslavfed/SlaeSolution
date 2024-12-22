@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
 
 slae::slae() : num_equations(0), num_variables(0), matrix_size(0), num_free_variables(0)
 {
@@ -10,10 +11,13 @@ slae::slae() : num_equations(0), num_variables(0), matrix_size(0), num_free_vari
 
 void slae::input(const std::string& file_name)
 {
-    std::ifstream input_file(file_name);
-    check_file_stream(input_file, file_name);
+    // std::ifstream input_file(file_name);
+    // check_file_stream(input_file, file_name);
+    //
+    // input_file >> num_equations >> num_variables;
 
-    input_file >> num_equations >> num_variables;
+    std::cin >> num_equations >> num_variables;
+    
     matrix_size = num_equations + num_variables;
 
     extended_matrix.resize(matrix_size, vector(num_variables + 1, 0));
@@ -23,17 +27,19 @@ void slae::input(const std::string& file_name)
     {
         for (size_t j = 0; j <= num_variables; ++j)
         {
-            input_file >> extended_matrix[i][j];
+            // input_file >> extended_matrix[i][j];
+            std::cin >> extended_matrix[i][j];
             original_matrix[i][j] = extended_matrix[i][j];
         }
-        extended_matrix[i][num_variables] *= -1; // Инвертируем правую часть
+        // Инвертируем правую часть
+        extended_matrix[i][num_variables] *= -1;
     }
 
     // Добавляем единичные строки для свободных переменных
     for (size_t i = num_equations, j = 0; i < matrix_size; ++i, ++j)
         extended_matrix[i][j] = 1;
 
-    input_file.close();
+    // input_file.close();
 }
 
 bool slae::solve()
@@ -45,7 +51,7 @@ bool slae::solve()
         if (pivot_column == static_cast<size_t>(-1))
         {
             if (extended_matrix[i][num_variables] != 0)
-                return false; // Система несовместна
+                return false;
             continue;
         }
 
@@ -67,22 +73,26 @@ bool slae::validate_solution()
 
 void slae::output(const std::string& file_name, const bool has_solution) const
 {
-    std::ofstream output_file(file_name);
-    check_file_stream(output_file, file_name);
+    // std::ofstream output_file(file_name);
+    // check_file_stream(output_file, file_name);
 
     if (!has_solution)
-        output_file << "NO SOLUTIONS";
+        // output_file << "NO SOLUTIONS";
+        std::cout << "NO SOLUTIONS";
     else
     {
-        output_file << num_free_variables << '\n';
+        // output_file << num_free_variables << '\n';
+        std::cout << num_free_variables << '\n';
         for (size_t i = num_equations; i < matrix_size; ++i)
         {
             for (size_t j = num_variables - num_free_variables; j <= num_variables; ++j)
-                output_file << extended_matrix[i][j] << " ";
-            output_file << '\n';
+                // output_file << extended_matrix[i][j] << " ";
+                std::cout << extended_matrix[i][j] << " ";
+            // output_file << '\n';
+            std::cout << '\n';
         }
     }
-    output_file.close();
+    // output_file.close();
 }
 
 size_t slae::find_pivot_column(const size_t row) const
