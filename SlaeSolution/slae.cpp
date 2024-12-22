@@ -57,7 +57,7 @@ bool slae::solve()
             for (int j = i; j < num_variables; j++)
                 if (j != min_index && extended_matrix[i][j] != 0)
                 {
-                    int q = extended_matrix[i][j] / extended_matrix[i][min_index];
+                    const int q = extended_matrix[i][j] / extended_matrix[i][min_index];
                     for (int k = i; k < matrix_size; k++)
                         extended_matrix[k][j] -= extended_matrix[k][min_index] * q;
                 }
@@ -66,20 +66,20 @@ bool slae::solve()
                 for (int k = i; k < matrix_size; k++)
                     std::swap(extended_matrix[k][i], extended_matrix[k][min_index]);
 
-            bool nonDiagonalExists = false;
+            bool non_diagonal_exists = false;
             for (int j = i + 1; j < num_variables; j++)
                 if (extended_matrix[i][j] != 0)
                 {
-                    nonDiagonalExists = true;
+                    non_diagonal_exists = true;
                     break;
                 }
 
-            if (!nonDiagonalExists)
+            if (!non_diagonal_exists)
             {
                 if (extended_matrix[i][i] == 0 || extended_matrix[i][num_variables] % extended_matrix[i][i] != 0)
                     return false;
 
-                int q = extended_matrix[i][num_variables] / extended_matrix[i][i];
+                const int q = extended_matrix[i][num_variables] / extended_matrix[i][i];
                 for (int k = i; k < matrix_size; k++)
                     extended_matrix[k][num_variables] -= extended_matrix[k][i] * q;
 
@@ -97,9 +97,9 @@ bool slae::validate_solution()
     if (num_free_variables < 0)
         return false;
 
-    vector t_val(num_free_variables);
+    vector free_variables(num_free_variables);
     for (int i = 0; i < num_free_variables; i++)
-        t_val[i] = rand();
+        free_variables[i] = rand(); // NOLINT(concurrency-mt-unsafe)
 
     vector x(num_variables);
     for (int i = 0; i < num_variables; i++)
@@ -107,7 +107,7 @@ bool slae::validate_solution()
 
     for (int s = num_equations, i = 0; s < matrix_size; s++, i++)
         for (int j = 0; j < num_free_variables; j++)
-            x[s - num_equations] += extended_matrix[s][num_variables - (j + 1)] * t_val[j];
+            x[s - num_equations] += extended_matrix[s][num_variables - (j + 1)] * free_variables[j];
 
     vector test(num_equations);
     for (int i = 0; i < num_equations; i++)
@@ -127,7 +127,7 @@ void slae::output(const bool has_solution) const
         std::cout << "NO SOLUTIONS" << '\n';
     else
     {
-        std::cout << num_free_variables << '\n'; // Number of free variables
+        std::cout << num_free_variables << '\n';
         for (int i = num_equations; i < matrix_size; i++)
         {
             for (int j = num_variables - num_free_variables; j <= num_variables; j++)
